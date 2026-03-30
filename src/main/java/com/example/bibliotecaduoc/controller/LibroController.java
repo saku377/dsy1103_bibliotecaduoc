@@ -1,6 +1,7 @@
 package com.example.bibliotecaduoc.controller;
 
 import com.example.bibliotecaduoc.dto.ClientRequest;
+import com.example.bibliotecaduoc.exception.ResourceNotFoundException;
 import com.example.bibliotecaduoc.mapper.LibroMapper;
 import com.example.bibliotecaduoc.model.Libro;
 import com.example.bibliotecaduoc.service.LibroService;
@@ -8,6 +9,7 @@ import com.example.bibliotecaduoc.service.LibroService;
 import jakarta.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,7 +20,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.validation.BindingResult;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/libros")
@@ -38,22 +42,28 @@ public class LibroController {
     //}
 
     @PostMapping
-    public Object agregarLibro(@Valid @RequestBody ClientRequest request, BindingResult result) {
+    public ResponseEntity<?> agregarLibro(@Valid @RequestBody ClientRequest request, BindingResult result) {
 
         if (result.hasErrors()) {
-            return result.getAllErrors();
+            Map<String, String> errores = new HashMap<>();
+            result.getFieldErrors().forEach(error -> 
+                errores.put(error.getField(), error.getDefaultMessage())
+            );
+            return ResponseEntity.badRequest().body(errores);
         }
 
-        return libroService.saveLibro(LibroMapper.toModel(request));
-    }    
+        return ResponseEntity.ok(libroService.saveLibro(LibroMapper.toModel(request)));
+    }
 
     @GetMapping("{id}")
-    public Libro buscarLibro(@PathVariable int id){
-        return libroService.getLibroId(id);
-    }
-    @GetMapping("anio/{anio}")
-    public Libro buscarLibro2(@PathVariable() int anio){
-        return libroService.getLibroId(anio);
+    public ResponseEntity<Libro> buscarLibro(@PathVariable int id){
+        Libro libro = libroService.getLibroId(id);
+        
+        if (libro == null) {
+            throw new ResourceNotFoundException("Libro no encontrado para id: " + id);
+        }
+        
+        return ResponseEntity.ok(libro);
     }
 
     @PutMapping("{id}")
